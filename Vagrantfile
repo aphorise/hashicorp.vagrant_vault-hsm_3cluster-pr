@@ -3,21 +3,22 @@
 # // To list interfaces on CLI typically:
 # //	macOS: networksetup -listallhardwareports ;
 # //	Linux: lshw -class network ;
-sNET='en0: Wi-Fi (Wireless)'  # // network adaptor to use for bridged mode
+sNET='en7: USB 10/100/1000 LAN'  # // network adaptor to use for bridged mode
+#sNET='en0: Wi-Fi (Wireless)'  # // network adaptor to use for bridged mode
 sVUSER='vagrant'  # // vagrant user
 sHOME="/home/#{sVUSER}"  # // home path for vagrant user
 sPTH='cc.os.user-input'  # // path where scripts are expected
 sCA_CERT='cacert.crt'  # // Root CA certificate.
 
-iCLUSTERA_N = 1  # // Vault A INSTANCES UP TO 9 <= iN > 0
-iCLUSTERB_N = 1  # // Vault B INSTANCES UP TO 9 <= iN > 0
-iCLUSTERC_N = 1  # // Vault B INSTANCES UP TO 9 <= iN > 0
+iCLUSTERA_N = 3  # // Vault A INSTANCES UP TO 9 <= iN > 0
+iCLUSTERB_N = 0  # // Vault B INSTANCES UP TO 9 <= iN > 0
+iCLUSTERC_N = 0  # // Vault B INSTANCES UP TO 9 <= iN > 0
 
-iCLUSTERA_C = 0  # // Consul A INSTANCES UP TO 9 <= iN > 2
+iCLUSTERA_C = 3  # // Consul A INSTANCES UP TO 9 <= iN > 2
 iCLUSTERB_C = 0  # // Consul B INSTANCES UP TO 9 <= iN > 2
 iCLUSTERC_C = 0  # // Consul B INSTANCES UP TO 9 <= iN > 2
 
-bCLUSTERA_CONSUL = false  # // Consul A use Consul as store for vault?
+bCLUSTERA_CONSUL = true  # // Consul A use Consul as store for vault?
 bCLUSTERB_CONSUL = false  # // Consul B use Consul as store for vault?
 bCLUSTERC_CONSUL = false  # // Consul C use Consul as store for vault?
 
@@ -72,11 +73,11 @@ aCLUSTERC_FILES =  # // Cluster C files to copy to instances
 ];
 
 
-VV1='VAULT_VERSION='+'1.5.3+ent.hsm'  # VV1='' to Install Latest OSS
+VV1='VAULT_VERSION='+'1.5.5+ent'  # VV1='' to Install Latest OSS
 VR1="VAULT_RAFT_JOIN=https://#{sCLUSTERA_sIP_VAULT_LEADER}:8200"  # raft join script determines applicability
-VV2='VAULT_VERSION='+'1.5.3+ent.hsm'  # VV2='' to Install Latest OSS
+VV2='VAULT_VERSION='+'1.5.5+ent'  # VV2='' to Install Latest OSS
 VR2="VAULT_RAFT_JOIN=https://#{sCLUSTERB_sIP_VAULT_LEADER}:8200"  # raft join script determines applicability
-VV3='VAULT_VERSION='+'1.5.3+ent.hsm'  # VV3='' to Install Latest OSS
+VV3='VAULT_VERSION='+'1.5.5+ent'  # VV3='' to Install Latest OSS
 VR3="VAULT_RAFT_JOIN=https://#{sCLUSTERB_sIP_VAULT_LEADER}:8200"  # raft join script determines applicability
 
 
