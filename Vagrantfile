@@ -72,11 +72,11 @@ aCLUSTERC_FILES =  # // Cluster C files to copy to instances
 ];
 
 
-VV1='VAULT_VERSION='+'1.5.3+ent.hsm'  # VV1='' to Install Latest OSS
+VV1='VAULT_VERSION='+'1.8.1+ent.hsm'  # VV1='' to Install Latest OSS
 VR1="VAULT_RAFT_JOIN=https://#{sCLUSTERA_sIP_VAULT_LEADER}:8200"  # raft join script determines applicability
-VV2='VAULT_VERSION='+'1.5.3+ent.hsm'  # VV2='' to Install Latest OSS
+VV2='VAULT_VERSION='+'1.8.1+ent.hsm'  # VV2='' to Install Latest OSS
 VR2="VAULT_RAFT_JOIN=https://#{sCLUSTERB_sIP_VAULT_LEADER}:8200"  # raft join script determines applicability
-VV3='VAULT_VERSION='+'1.5.3+ent.hsm'  # VV3='' to Install Latest OSS
+VV3='VAULT_VERSION='+'1.8.1+ent.hsm'  # VV3='' to Install Latest OSS
 VR3="VAULT_RAFT_JOIN=https://#{sCLUSTERB_sIP_VAULT_LEADER}:8200"  # raft join script determines applicability
 
 

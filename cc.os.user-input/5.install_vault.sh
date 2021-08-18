@@ -375,6 +375,17 @@ function sudoSetup()
 			VAULT_API_ADDR="${PROTO}://${IP_WAN}:${VAULT_PORT_API}" ;
 			VAULT_CLU_ADDR="${PROTO}://${IP_WAN}:${VAULT_PORT_CLUSTER}" ;
 
+			# // LICNESE for 1.8.x or higher needs file and different to earlier
+			VAULT_CONF_LICENSE='' ;
+			VVERSION=$(vault --version) ;
+			VVERSION2=$(echo ${VVERSION} | cut -d'v' -f2 | cut -d' ' -f1) ;
+			VVERSION2=${VVERSION2:0:3} ;  # // take only major portion of version
+			if [[ "1" == $(echo "a = 1.8 <= ${VVERSION2}" | bc) ]] && [[ ${VVERSION} == *"ent" || ${VVERSION} == *"ent.hsm"* ]] && [[ -s ${LICENSE_FILE} ]]  ; then
+				cp ${LICENSE_FILE} ${PATH_VAULT}/.
+				VLPWD="${PATH_VAULT}/${LICENSE_FILE}"
+				VAULT_CONF_LICENSE="license_path=\"${VLPWD}\"" 
+			fi ;
+
 			printf "%s" ''''${VAULT_CLUSTER_NAME}'
 api_addr = "'${VAULT_API_ADDR}'"
 cluster_addr = "'${VAULT_CLU_ADDR}'"
@@ -385,7 +396,17 @@ listener "tcp" {
 '${VAULT_CONF_TLS_CERT_FILE}'
 '${VAULT_CONF_TLS_KEY_FILE}'
 '${VAULT_CONF_TLS_DISABLED}'
+	# tls_cipher_suites = "TLS_CHACHA20_POLY1305_SHA256,TLS_RSA_WITH_AES_256_GCM_SHA384,TLS_AES_256_GCM_SHA384,TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384,TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384,TLS_RSA_WITH_AES_128_GCM_SHA256,TLS_AES_128_GCM_SHA256,TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256,TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256"
+	telemetry {
+		unauthenticated_metrics_access = true
+	}
 }
+
+telemetry {
+	prometheus_retention_time = "24h"
+	disable_hostname = true
+}
+
 '"${VAULT_CONF_STORE}"'
 '"$(iX=0 ; while (( ${#VAULT_CONF_SEAL[@]} > iX )); do printf "${VAULT_CONF_SEAL[iX++]}\n" ; done )"'
 
@@ -394,6 +415,7 @@ log_level = "trace"
 ui = true
 raw_storage_endpoint = true
 # plugin_directory = "/etc/vault.d/plugins"  # // path needs to exist to get enable plugins
+'${VAULT_CONF_LICENSE}'
 ''' > ${PATH_VAULT_CONFIG} ;
 		else
 			pOUT "VAULT Conifg: ${PATH_VAULT_CONFIG} - already present." ;
@@ -521,7 +543,9 @@ function vaultInitSetup()
 
 	# // apply license if enterprise & file exists and is not empty or commented.
 	VVERSION=$(vault --version) ;
-	if [[ ${VAULT_NODENAME} == *"1" ]] && [[ ${VVERSION} == *"ent" || ${VVERSION} == *"ent.hsm"* ]] && [[ -s ${LICENSE_FILE} ]] ; then
+	VVERSION2=$(echo ${VVERSION} | cut -d'v' -f2 | cut -d' ' -f1) ;
+	VVERSION2=${VVERSION2:0:3} ;  # // take only major portion of version
+	if [[ "0" == $(echo "a = 1.8 <= ${VVERSION2}" | bc) ]] && [[ ${VAULT_NODENAME} == *"1" ]] && [[ ${VVERSION} == *"ent" || ${VVERSION} == *"ent.hsm"* ]] && [[ -s ${LICENSE_FILE} ]] ; then
 		set +e ;
 		# // read the key
 		VAULT_LICENSE=$(grep -v '#' ${LICENSE_FILE}) ;

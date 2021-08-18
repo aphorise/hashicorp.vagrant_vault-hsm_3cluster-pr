@@ -11,7 +11,15 @@ export LANGUAGE=en_US.UTF-8 ;
 export LANG=en_US.UTF-8 ;
 export LC_ALL=en_US.UTF-8 ;
 locale-gen en_US.UTF-8 > /dev/null 2>&1 && dpkg-reconfigure locales > /dev/null 2>&1 ;
-printf "OS LOCALS / LANG: '${LANGUAGE}' set.\n" ;
+
+LCS="""
+LANGUAGE=en_US.UTF-8
+LANG=en_US.utf-8
+LC_ALL=en_US.utf-8
+""" ;
+if printf "en_US.UTF-8 UTF-8" >> /etc/locale.gen && printf "${LCS}" >> /etc/environment && printf "${LCS}" >> /etc/default/locale ; then 
+    printf "OS LOCALS / LANG: '${LANGUAGE}' set.\n" ;
+fi ;
 
 # // persist journal entries between reboots:
 mkdir -p /var/log/journal && chown root:adm /var/log/journal ;
@@ -21,7 +29,7 @@ UNAME="$(uname -ar)" ;
 # // OS Version specific apps missing:
 # PKG_UBUNTU='realpath' ; # if [[ ${UNAME} == *"Ubuntu"* ]] ; then sudo apt-get update > /dev/null && sudo apt-get install -yq ${PKG_UBUNTU} > /dev/null ; fi ;
 # // common utils & build tools: make, cpp, etc.
-PKGS="policykit-1 unzip curl htop screen jq build-essential libssh-dev" ;
+PKGS="locales locales-all bc policykit-1 unzip curl htop screen jq build-essential libssh-dev" ;
 PKGS="${PKGS}" ;  # ${PKG_UBUNTU} any-other-packages" ;
 printf "OS INSTALLING: ${PKGS} ...\n" ;
 sudo apt-get update > /dev/null && apt-get install -yq ${PKGS} > /dev/null ;

@@ -6,6 +6,11 @@ seal "pkcs11" {
 	key_label	= "hsm:v1:vault"
 	hmac_key_label	= "hsm:v1:vault-hmac"
 	generate_key	= "true"
+	#disabled = "true"
 	#mechanism 	= "0x1087"  # // may be needed with some hw
 	#hmac_mechanism = "0x0251"  # // may be needed with some hw
+}
+
+entropy "seal" {
+        mode = "augmentation"
 }
