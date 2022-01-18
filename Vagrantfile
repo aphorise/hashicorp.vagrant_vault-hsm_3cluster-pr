@@ -3,7 +3,8 @@
 # // To list interfaces on CLI typically:
 # //	macOS: networksetup -listallhardwareports ;
 # //	Linux: lshw -class network ;
-sNET='en0: Wi-Fi (Wireless)'  # // network adaptor to use for bridged mode
+#sNET='en0: Wi-Fi (Wireless)'  # // network adaptor to use for bridged mode
+sNET='en7: USB 10/100/1000 LAN'  # // network adaptor to use for bridged mode
 sVUSER='vagrant'  # // vagrant user
 sHOME="/home/#{sVUSER}"  # // home path for vagrant user
 sPTH='cc.os.user-input'  # // path where scripts are expected
@@ -11,7 +12,7 @@ sCA_CERT='cacert.crt'  # // Root CA certificate.
 
 iCLUSTERA_N = 1  # // Vault A INSTANCES UP TO 9 <= iN > 0
 iCLUSTERB_N = 1  # // Vault B INSTANCES UP TO 9 <= iN > 0
-iCLUSTERC_N = 1  # // Vault B INSTANCES UP TO 9 <= iN > 0
+iCLUSTERC_N = 0  # // Vault B INSTANCES UP TO 9 <= iN > 0
 
 iCLUSTERA_C = 0  # // Consul A INSTANCES UP TO 9 <= iN > 2
 iCLUSTERB_C = 0  # // Consul B INSTANCES UP TO 9 <= iN > 2
@@ -63,7 +64,7 @@ aCLUSTERA_FILES =  # // Cluster A files to copy to instances
 
 aCLUSTERB_FILES =  # // Cluster B files to copy to instances
 [
-#	"vault_files/."  # "vault_files/vault_seal.hcl", "vault_files/vault_license.txt"  ## // for individual files
+	"vault_files/."  # "vault_files/vault_seal.hcl", "vault_files/vault_license.txt"  ## // for individual files
 ];
 
 aCLUSTERC_FILES =  # // Cluster C files to copy to instances
@@ -147,14 +148,14 @@ SCRIPT
 				vault_node.vm.provision "file", source: ".vagrant/machines/hsm1-vault1/virtualbox/private_key", destination: "#{sHOME}/.ssh/id_rsa2"
 				$script = <<-SCRIPT
 ssh-keyscan #{sCLUSTERA_IP_CA_NODE} 2>/dev/null >> #{sHOME}/.ssh/known_hosts ; chown #{sVUSER}:#{sVUSER} -R #{sHOME}/.ssh ;
-su -l #{sVUSER} -c \"rsync -qva --rsh='ssh -i #{sHOME}/.ssh/id_rsa2' #{sVUSER}@#{sCLUSTERA_IP_CA_NODE}:~/vault#{iX}* :~/#{sCA_CERT} :~/vault_init.json #{sHOME}/.\"
+su -l #{sVUSER} -c \"rsync -qva --rsh='ssh -i #{sHOME}/.ssh/id_rsa2' #{sVUSER}@#{sCLUSTERA_IP_CA_NODE}:~/vault#{iX}* :~/vault_init.json #{sHOME}/.\"
 SCRIPT
 				vault_node.vm.provision "shell", inline: $script
 			end
 
 			# // ORDERED: setup certs.
-			vault_node.vm.provision "file", source: "#{sPTH}/4.install_tls_ca_certs.sh", destination: "#{sHOME}/install_tls_ca_certs.sh"
-			vault_node.vm.provision "shell", inline: "/bin/bash -c '#{sHOME}/install_tls_ca_certs.sh #{iX == 1 ? iCLUSTERA_N : '' }'"
+#			vault_node.vm.provision "file", source: "#{sPTH}/4.install_tls_ca_certs.sh", destination: "#{sHOME}/install_tls_ca_certs.sh"
+#			vault_node.vm.provision "shell", inline: "/bin/bash -c '#{sHOME}/install_tls_ca_certs.sh #{iX == 1 ? iCLUSTERA_N : '' }'"
 
 			# // where additional Vault related files exist copy them across (eg License & seal configuration)
 			for sFILE in aCLUSTERA_FILES
@@ -237,7 +238,7 @@ SCRIPT
 				vault_node.vm.provision "file", source: ".vagrant/machines/hsm2-vault1/virtualbox/private_key", destination: "#{sHOME}/.ssh/id_rsa2"
 				$script = <<-SCRIPT
 ssh-keyscan #{sCLUSTERB_IP_CA_NODE} 2>/dev/null >> #{sHOME}/.ssh/known_hosts ; chown #{sVUSER}:#{sVUSER} -R #{sHOME}/.ssh ;
-su -l #{sVUSER} -c \"rsync -qva --rsh='ssh -i #{sHOME}/.ssh/id_rsa2' #{sVUSER}@#{sCLUSTERB_IP_CA_NODE}:~/vault#{iX}* :~/#{sCA_CERT} :~/vault_init.json #{sHOME}/.\"
+su -l #{sVUSER} -c \"rsync -qva --rsh='ssh -i #{sHOME}/.ssh/id_rsa2' #{sVUSER}@#{sCLUSTERB_IP_CA_NODE}:~/vault#{iX}*  :~/vault_init.json #{sHOME}/.\"
 SCRIPT
 				vault_node.vm.provision "shell", inline: $script
 			end
@@ -250,14 +251,14 @@ SCRIPT
 				$script = <<-SCRIPT
 ssh-keyscan #{sCLUSTERA_sIP_VAULT_LEADER} 2>/dev/null >> #{sHOME}/.ssh/known_hosts ; chown #{sVUSER}:#{sVUSER} -R #{sHOME}/.ssh ;
 su -l #{sVUSER} -c \"rsync -qva --rsh='ssh -i #{sHOME}/.ssh/id_rsa1' #{sVUSER}@#{sCLUSTERA_sIP_VAULT_LEADER}:~/vault_token_perf1.json #{sHOME}/.\"
-su -l #{sVUSER} -c \"rsync -qva --rsh='ssh -i #{sHOME}/.ssh/id_rsa1' #{sVUSER}@#{sCLUSTERA_sIP_VAULT_LEADER}:~/#{sCA_CERT} #{sHOME}/cacert_leader.crt\"
+#su -l #{sVUSER} -c \"rsync -qva --rsh='ssh -i #{sHOME}/.ssh/id_rsa1' #{sVUSER}@#{sCLUSTERA_sIP_VAULT_LEADER}:~/#{sCA_CERT} #{sHOME}/cacert_leader.crt\"
 SCRIPT
 				vault_node.vm.provision "shell", inline: $script
 			end
 
 			# // ORDERED: setup certs.
-			vault_node.vm.provision "file", source: "#{sPTH}/4.install_tls_ca_certs.sh", destination: "#{sHOME}/install_tls_ca_certs.sh"
-			vault_node.vm.provision "shell", inline: "/bin/bash -c '#{sHOME}/install_tls_ca_certs.sh #{iX == 1 ? iCLUSTERB_N : '' }'"
+#			vault_node.vm.provision "file", source: "#{sPTH}/4.install_tls_ca_certs.sh", destination: "#{sHOME}/install_tls_ca_certs.sh"
+#			vault_node.vm.provision "shell", inline: "/bin/bash -c '#{sHOME}/install_tls_ca_certs.sh #{iX == 1 ? iCLUSTERB_N : '' }'"
 
 			# // where additional Vault related files exist copy them across (eg License & seal configuration)
 			for sFILE in aCLUSTERB_FILES
@@ -341,7 +342,7 @@ SCRIPT
 				vault_node.vm.provision "file", source: ".vagrant/machines/hsm2-vault1/virtualbox/private_key", destination: "#{sHOME}/.ssh/id_rsa2"
 				$script = <<-SCRIPT
 ssh-keyscan #{sCLUSTERC_IP_CA_NODE} 2>/dev/null >> #{sHOME}/.ssh/known_hosts ; chown #{sVUSER}:#{sVUSER} -R #{sHOME}/.ssh ;
-su -l #{sVUSER} -c \"rsync -qva --rsh='ssh -i #{sHOME}/.ssh/id_rsa2' #{sVUSER}@#{sCLUSTERC_IP_CA_NODE}:~/vault#{iX}* :~/#{sCA_CERT} :~/vault_init.json #{sHOME}/.\"
+su -l #{sVUSER} -c \"rsync -qva --rsh='ssh -i #{sHOME}/.ssh/id_rsa2' #{sVUSER}@#{sCLUSTERC_IP_CA_NODE}:~/vault#{iX}*  :~/vault_init.json #{sHOME}/.\"
 SCRIPT
 				vault_node.vm.provision "shell", inline: $script
 			end
@@ -354,14 +355,14 @@ SCRIPT
 				$script = <<-SCRIPT
 ssh-keyscan #{sCLUSTERA_sIP_VAULT_LEADER} 2>/dev/null >> #{sHOME}/.ssh/known_hosts ; chown #{sVUSER}:#{sVUSER} -R #{sHOME}/.ssh ;
 su -l #{sVUSER} -c \"rsync -qva --rsh='ssh -i #{sHOME}/.ssh/id_rsa1' #{sVUSER}@#{sCLUSTERA_sIP_VAULT_LEADER}:~/vault_token_perf2.json #{sHOME}/.\"
-su -l #{sVUSER} -c \"rsync -qva --rsh='ssh -i #{sHOME}/.ssh/id_rsa1' #{sVUSER}@#{sCLUSTERA_sIP_VAULT_LEADER}:~/#{sCA_CERT} #{sHOME}/cacert_leader.crt\"
+#su -l #{sVUSER} -c \"rsync -qva --rsh='ssh -i #{sHOME}/.ssh/id_rsa1' #{sVUSER}@#{sCLUSTERA_sIP_VAULT_LEADER}:~/#{sCA_CERT} #{sHOME}/cacert_leader.crt\"
 SCRIPT
 				vault_node.vm.provision "shell", inline: $script
 			end
 
 			# // ORDERED: setup certs.
-			vault_node.vm.provision "file", source: "#{sPTH}/4.install_tls_ca_certs.sh", destination: "#{sHOME}/install_tls_ca_certs.sh"
-			vault_node.vm.provision "shell", inline: "/bin/bash -c '#{sHOME}/install_tls_ca_certs.sh #{iX == 1 ? iCLUSTERC_N : '' }'"
+#			vault_node.vm.provision "file", source: "#{sPTH}/4.install_tls_ca_certs.sh", destination: "#{sHOME}/install_tls_ca_certs.sh"
+#			vault_node.vm.provision "shell", inline: "/bin/bash -c '#{sHOME}/install_tls_ca_certs.sh #{iX == 1 ? iCLUSTERC_N : '' }'"
 
 			# // where additional Vault related files exist copy them across (eg License & seal configuration)
 			for sFILE in aCLUSTERC_FILES

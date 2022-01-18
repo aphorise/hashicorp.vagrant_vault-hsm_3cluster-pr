@@ -60,3 +60,22 @@ else pERR 'VAULT ERROR: UserPass could not be enabled."\n' ; fi ;
 vault write auth/userpass/users/root2 password="root" policies="superuser" > /dev/null 2>&1 ;
 if (($? == 0)) ; then pOUT 'VAULT: USER root2 created.\n' ;
 else pERR 'VAULT ERROR: Unable to creat roo2."\n' ; fi ;
+
+vault secrets enable pki > /dev/null 2>&1 ;
+if (($? == 0)) ; then pOUT 'VAULT: PKI mount enabled at pki/.\n' ;
+else pERR 'VAULT ERROR: Unable to enable PKI mount."\n' ; fi ;
+
+vault write pki/root/generate/internal common_name='tas600 toyota-europe' ttl=960h > /dev/null 2>&1 ;
+if (($? == 0)) ; then pOUT 'VAULT: pki/ CA configured.\n' ;
+else pERR 'VAULT ERROR: Unable to configure PKI CA ."\n' ; fi ;
+
+vault write pki/roles/tas600 allowed_domains=tas600.toyota-europe.com allow_subdomains=true max_ttl=961h > /dev/null 2>&1 ;
+if (($? == 0)) ; then pOUT 'VAULT: PKI ROLE tas600 writen.\n' ;
+else pERR 'VAULT ERROR: Unable to create PKI ROLE."\n' ; fi ;
+
+vault write pki/issue/tas600 common_name=123.tas600.toyota-europe.com ttl=400h > /dev/null 2>&1 && \
+vault write pki/issue/tas600 common_name=1234.tas600.toyota-europe.com ttl=400h > /dev/null 2>&1 && \
+vault write pki/issue/tas600 common_name=12345.tas600.toyota-europe.com ttl=400h > /dev/null 2>&1 ;
+
+if (($? == 0)) ; then pOUT 'VAULT: PKI Generated three (3) test certificates.\n' ;
+else pERR 'VAULT ERROR: Unable to generate 3 PKI certificaets."\n' ; fi ;

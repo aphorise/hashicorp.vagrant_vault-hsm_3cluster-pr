@@ -447,7 +447,7 @@ raw_storage_endpoint = true
 		systemctl enable vault.service > /dev/null 2>&1 ;
 		systemctl start vault.service > /dev/null 2>&1 ;
 
-		SLEEP_TIME=3 ; # // time to sleep after a restart
+		SLEEP_TIME=10 ; # // time to sleep after a restart
 		pOUT "WAITING ${SLEEP_TIME} seconds for Vault service to be ready after a start." ;
 		sleep ${SLEEP_TIME} ;
 	fi ;
@@ -457,6 +457,8 @@ raw_storage_endpoint = true
 function vaultInitSetup()
 {
 	# // CAUTION: version is not always listed prior to vault init.
+	export VAULT_ADDR=http://127.0.0.1:8200
+#vault status
 	VSEAL_TATUS=($(vault status -format=json 2>/dev/null | jq -r '.initialized,.sealed,.t,.progress,.type,.storage_type')) ;
 
 	if [[ ${VSEAL_TATUS[*]} == "" ]] ; then pERR 'ERROR: VAULT unable to get status.' ; fi ;
