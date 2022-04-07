@@ -25,7 +25,7 @@ EXAMPLES:
 		SETUP='server' IP_WAN_INTERFACE='eth0' ${0##*/} ;
 		# Use a differnt interface ip for vault cluster_address binding.
 
-${0##*/} 0.0.6					July 2020
+${0##*/} 0.0.6pr-hsm					April 2022
 """ ;
 fi ;
 
@@ -379,11 +379,19 @@ function sudoSetup()
 			VAULT_CONF_LICENSE='' ;
 			VVERSION=$(vault --version) ;
 			VVERSION2=$(echo ${VVERSION} | cut -d'v' -f2 | cut -d' ' -f1) ;
-			VVERSION2=${VVERSION2:0:3} ;  # // take only major portion of version
-			if [[ "1" == $(echo "a = 1.8 <= ${VVERSION2}" | bc) ]] && [[ ${VVERSION} == *"ent" || ${VVERSION} == *"ent.hsm"* ]] && [[ -s ${LICENSE_FILE} ]]  ; then
+			# // 1.10 semantic versions wont work with all x < y comparisons
+			# // for all versions that are 4 length 1.1x or 1.2x then just apply
+			VVERSION2=${VVERSION2:0:4} ;  # // take only major portion of version
+			if [[ "${VVERSION2:3:1}" == "." ]] ; then
+				VVERSION2=$(echo ${VVERSION} | cut -d'v' -f2 | cut -d' ' -f1) ;
+				VVERSION2=${VVERSION2:0:3} ;  # // take only major portion of version
+			fi ;
+			if [[ ${VVERSION} == *"ent" || ${VVERSION} == *"ent.hsm"* ]] && [[ -s ${LICENSE_FILE} ]] && \
+				[[ (( ${#VVERSION2} == 4 )) && "1" == $(bc <<<"1.10 <= $VVERSION2") ]] || \
+				[[ "1" == $(bc <<<"a = 1.8 <= ${VVERSION2}") ]] ; then
 				cp ${LICENSE_FILE} ${PATH_VAULT}/.
 				VLPWD="${PATH_VAULT}/${LICENSE_FILE}"
-				VAULT_CONF_LICENSE="license_path=\"${VLPWD}\"" 
+				VAULT_CONF_LICENSE="license_path=\"${VLPWD}\""
 			fi ;
 
 			printf "%s" ''''${VAULT_CLUSTER_NAME}'
@@ -544,8 +552,17 @@ function vaultInitSetup()
 	# // apply license if enterprise & file exists and is not empty or commented.
 	VVERSION=$(vault --version) ;
 	VVERSION2=$(echo ${VVERSION} | cut -d'v' -f2 | cut -d' ' -f1) ;
-	VVERSION2=${VVERSION2:0:3} ;  # // take only major portion of version
-	if [[ "0" == $(echo "a = 1.8 <= ${VVERSION2}" | bc) ]] && [[ ${VAULT_NODENAME} == *"1" ]] && [[ ${VVERSION} == *"ent" || ${VVERSION} == *"ent.hsm"* ]] && [[ -s ${LICENSE_FILE} ]] ; then
+	# // 1.10 semantic versions wont work with all x < y comparisons
+	# // for all versions that are 4 length 1.1x or 1.2x then just apply
+	VVERSION2=${VVERSION2:0:4} ;  # // take only major portion of version
+	if [[ "${VVERSION2:3:1}" == "." ]] ; then
+		VVERSION2=$(echo ${VVERSION} | cut -d'v' -f2 | cut -d' ' -f1) ;
+		VVERSION2=${VVERSION2:0:3} ;  # // take only major portion of version
+	fi ;
+	if [[ ${VAULT_NODENAME} == *"1" ]] && [[ ${VVERSION} == *"ent" || ${VVERSION} == *"ent.hsm"* ]] && [[ -s ${LICENSE_FILE} ]] && \
+		[[ (( ${#VVERSION2} == 4 )) && "0" == $(bc <<<"1.10 <= $VVERSION2") ]] || \
+		[[ (( ${#VVERSION2} == 3 )) && "0" == $(bc <<<"a = 1.8 <= ${VVERSION2}") ]] ; then
+
 		set +e ;
 		# // read the key
 		VAULT_LICENSE=$(grep -v '#' ${LICENSE_FILE}) ;

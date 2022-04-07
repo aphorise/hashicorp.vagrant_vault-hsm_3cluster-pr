@@ -36,7 +36,7 @@ Ensure that you already have the following hardware & software requirements:
    - adjust `sNET='en0: Wi-Fi (Wireless)'` in **`Vagrantfile`** to match your system.
  - [**Virtualbox**](https://www.virtualbox.org/) with [Virtualbox Guest Additions (VBox GA)](https://download.virtualbox.org/virtualbox/) & [**Vagrant**](https://www.vagrantup.com/) correctly installed.
  - **Few** (**2**) **`shell`** or **`screen`** sessions to allow for multiple SSH sessions.
- - :lock: **IMPORTANT**: An [**enterprise license**](https://www.hashicorp.com/products/vault/pricing/) is **needed** for both [HSM Support](https://www.vaultproject.io/docs/enterprise/hsm) as well as [Performance Replication](https://www.vaultproject.io/docs/enterprise/replication/) features. **BY DEFAULT**: **not setting** a valid license (in `vault_license.txt`) is possible for **trail / evaluation purposes only** with a limit of **29 minutes** per node (warning messages should be apparent throughout before auto-sealing after). :lock:
+ - :lock: **IMPORTANT**: An [**enterprise license**](https://www.hashicorp.com/products/vault/pricing/) is **needed** for both [HSM Support](https://www.vaultproject.io/docs/enterprise/hsm) as well as [Performance Replication](https://www.vaultproject.io/docs/enterprise/replication/) features. **BY DEFAULT**: **not setting** a valid license (in `vault_license.txt`) is possible for **trail / evaluation purposes only** using older **unsupported** versions of **1.7.10** with a limit of **29 minutes** per node (warning messages should be apparent throughout before auto-sealing after). :lock:
 
 
 ## Usage & Workflow
