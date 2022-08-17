@@ -3,8 +3,8 @@
 # // To list interfaces on CLI typically:
 # //	macOS: networksetup -listallhardwareports ;
 # //	Linux: lshw -class network ;
-sNET='en0: Wi-Fi'  # // network adaptor to use for bridged mode
-#sNET='en6: USB 10/100/1000 LAN'  # // network adaptor to use for bridged mode
+#sNET='en0: Wi-Fi'  # // network adaptor to use for bridged mode
+sNET='en6: USB 10/100/1000 LAN'  # // network adaptor to use for bridged mode
 
 sVUSER='vagrant'  # // vagrant user
 sHOME="/home/#{sVUSER}"  # // home path for vagrant user
@@ -31,9 +31,9 @@ CLUSTERA_HOSTNAME_PREFIX = 'hsm1-'  # // Vault A Cluster Name
 CLUSTERB_HOSTNAME_PREFIX = 'hsm2-'  # // Vault B Cluster Name
 CLUSTERC_HOSTNAME_PREFIX = 'hsm3-'  # // Vault C Cluster Name
 
-sCLUSTERA_IP_CLASS_D='192.168.178'  # // Consul A NETWORK CIDR forconfigs.
-sCLUSTERB_IP_CLASS_D='192.168.178'  # // Consul B NETWORK CIDR for configs.
-sCLUSTERC_IP_CLASS_D='192.168.178'  # // Consul C NETWORK CIDR for configs.
+sCLUSTERA_IP_CLASS_D='192.168.168'  # // Consul A NETWORK CIDR forconfigs.
+sCLUSTERB_IP_CLASS_D='192.168.168'  # // Consul B NETWORK CIDR for configs.
+sCLUSTERC_IP_CLASS_D='192.168.168'  # // Consul C NETWORK CIDR for configs.
 
 iCLUSTERA_IP_CONSUL_CLASS_D=110  # // Consul A IP starting D class (increment or de)
 iCLUSTERB_IP_CONSUL_CLASS_D=120  # // Consul B IP starting D class (increment or de)
@@ -74,21 +74,21 @@ aCLUSTERC_FILES =  # // Cluster C files to copy to instances
 ];
 
 
-VV1='VAULT_VERSION='+'1.7.10+ent.hsm'  # VV1='' to Install Latest OSS
+VV1='VAULT_VERSION='+'1.10.3+ent.hsm'  # VV1='' to Install Latest OSS
 VR1="VAULT_RAFT_JOIN=https://#{sCLUSTERA_sIP_VAULT_LEADER}:8200"  # raft join script determines applicability
-VV2='VAULT_VERSION='+'1.7.10+ent.hsm'  # VV2='' to Install Latest OSS
+VV2='VAULT_VERSION='+'1.10.3+ent.hsm'  # VV2='' to Install Latest OSS
 VR2="VAULT_RAFT_JOIN=https://#{sCLUSTERB_sIP_VAULT_LEADER}:8200"  # raft join script determines applicability
-VV3='VAULT_VERSION='+'1.7.10+ent.hsm'  # VV3='' to Install Latest OSS
+VV3='VAULT_VERSION='+'1.10.3+ent.hsm'  # VV3='' to Install Latest OSS
 VR3="VAULT_RAFT_JOIN=https://#{sCLUSTERB_sIP_VAULT_LEADER}:8200"  # raft join script determines applicability
 
 
 sERROR_MSG_CONSUL="CONSUL Node count can NOT be zero (0). Set to: 3, 5, 7 , 11, etc."
 
 Vagrant.configure("2") do |config|
-	config.vm.box = "debian/buster64"
+	config.vm.box = "debian/bullseye64"
 	config.vm.box_check_update = false  # // disabled to reduce verbosity - better enabled
 	#config.vm.box_version = "10.4.0"  # // Debian tested version.
-	# // OS may be "ubuntu/bionic64" or "ubuntu/focal64" as well.
+	# // OS may be "ubuntu/.." as well.
 
 	config.vm.provider "virtualbox" do |v|
 		v.memory = 1024  # // RAM / Memory
