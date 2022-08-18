@@ -77,3 +77,7 @@ printf 'BASH: defaults in (.bashrc) profile set.\n' ;
 #fi ;
 #printf "# // UNSTABLE sources (for latest apps 2.6+):\n${PKG_SRC}\n" > /etc/apt/sources.list.d/unstable.list ;
 #apt-get update > /dev/null 2>&1 ;
+
+# // silence welcome message
+if [[ ! ${USER_VAGRANT+x} ]] ; then USER_VAGRANT='vagrant' ; fi ; # // default vault (daemon) user.
+touch /home/${USER_VAGRANT}/.hushlogin && chown ${USER_VAGRANT}:${USER_VAGRANT} /home/${USER_VAGRANT}/.hushlogin ;

@@ -1,7 +1,6 @@
 #!/usr/bin/env bash
 set -eu ; # abort this script when a command fails or an unset variable is used.
 #set -x ; # echo all the executed commands.
-
 if [[ ${1-} ]] && [[ (($# == 1)) || $1 == "-h" || $1 == "--help" || $1 == "help" ]] ; then
 printf """Usage: VARIABLE='...' ${0##*/} [OPTIONS]
 Installs HashiCorp Vault & can help setup services.
@@ -15,7 +14,7 @@ For upto date & complete documentation of Vault see: https://www.vaultproject.io
 
 VARIABLES:
 		SETUP='' # // default just download binary otherwise 'server'
-		VAULT_VERSION='' # // default LATEST - '1.4.2+ent' for enterprise or oss by default.
+		VAULT_VERSION='' # // default LATEST - '1.11.2+ent' for enterprise or oss by default.
 		IP_WAN_INTERFACE='eth1' # // default for cluster_address uses where not set eth1.
 
 EXAMPLES:
@@ -25,7 +24,7 @@ EXAMPLES:
 		SETUP='server' IP_WAN_INTERFACE='eth0' ${0##*/} ;
 		# Use a differnt interface ip for vault cluster_address binding.
 
-${0##*/} 0.0.6pr-hsm					April 2022
+${0##*/} 0.0.8-hsm-v1.11.2					August 2022
 """ ;
 fi ;
 
@@ -489,10 +488,34 @@ function vaultInitSetup()
 					pERR 'ERROR: unable to set initial VAULT Recovery or Root tokens.' ;
 				fi ;
 			else
-				if [[ -s ${VAULT_INIT_FILE} && ${VSEAL_TATUS[5]} != "raft" ]] ; then
-					pOUT 'VAULT UNSEAL: Attempting Unseal using UNSEAL KEYS from Leader Node (vault_init.json).' ;
-					VAULT_TOKEN=$(jq -r '.root_token' ${VAULT_INIT_FILE}) ;
-					VAULT_TOKEN=${VAULT_TOKEN} vault operator unseal $(jq -r '.unseal_keys_b64[0]' ${VAULT_INIT_FILE}) ;
+				if [[ -s ${VAULT_INIT_FILE} && ${VSEAL_TATUS[5]} == "raft" ]] ; then
+					# // may need raft join if storage is configured as such for all nodes after 1.
+					if [[ ${VAULT_RAFT_JOIN} != "" ]] ; then
+						VAULT_TOKEN=$(jq -r '.root_token' ${VAULT_INIT_FILE}) ;
+						if [[ ${VAULT_TOKEN} != "" ]] ; then
+							pOUT 'RAFT: Attempting to join.' ;
+							sleep 1 ;
+							set +e ;
+							vault operator raft join ${VAULT_RAFT_JOIN} > /dev/null 2>&1 ;
+							if (($? == 0)) ; then
+								pOUT "RAFT: SUCCESS JOINED ${VAULT_NODENAME} to ${VAULT_RAFT_JOIN}." ;
+							else
+								pERR "--ERROR: Vault RAFT unable to join ${VAULT_NODENAME} to ${VAULT_RAFT_JOIN}." ;
+							fi ;
+							set -e ;
+							pOUT 'WAITING 4 seconds for Vault to sync before manually UNSEALING.' ;
+							sleep 4 ; # // need a sleep 8 seconds for status to update & primary node to be selected.
+							pOUT 'VAULT UNSEAL: Attempting Unseal using UNSEAL KEYS from Leader Node (vault_init.json).' ;
+							vault operator unseal $(jq -r '.unseal_keys_b64[0]' ${VAULT_INIT_FILE}) > /dev/null 2>&1 ;
+							if (($? == 0)) ; then
+								pOUT "SHAMIR: UNSEAL MANUALLY USING LOACAL KEYS." ;
+							else
+								pERR "--ERROR: UNSEAL ISSUE." ;
+							fi ;
+						else
+							pERR '--ERROR: Vault RAFT - No Token or Vault not ready to join.' ;
+						fi ;
+					fi ;
 				#else printf 'VAULT: NO UNSEAL ACTIONS TAKEN.\n' ;
 				fi ;
 			fi ;
@@ -580,24 +603,6 @@ function vaultInitSetup()
 			else
 				pERR '--ERROR: Vault Applying License - No Token or Vault not ready.' ;
 			fi ;
-		fi ;
-	fi ;
-
-	# // may need raft join if storage is configured as such for all nodes after 1.
-	if [[ ${VAULT_RAFT_JOIN} != "" ]] && [[ ${VSEAL_TATUS[5]} == "raft" ]] ; then
-		if [[ ${VAULT_TOKEN} != "" ]] ; then
-			pOUT 'RAFT: Attempting to join.' ;
-			sleep 1 ;
-			set +e ;
-			VAULT_TOKEN=${VAULT_TOKEN} VAULT_ADDR=${VAULT_API_ADDR} vault operator raft join ${VAULT_RAFT_JOIN} > /dev/null 2>&1 ;
-			if (($? == 0)) ; then
-				pOUT "RAFT: SUCCESS JOINED ${VAULT_NODENAME} to ${VAULT_RAFT_JOIN}." ;
-			else
-				pERR "--ERROR: Vault RAFT unable to join ${VAULT_NODENAME} to ${VAULT_RAFT_JOIN}." ;
-			fi ;
-			set -e ;
-		else
-			pERR '--ERROR: Vault RAFT - No Token or Vault not ready to join.' ;
 		fi ;
 	fi ;
 
