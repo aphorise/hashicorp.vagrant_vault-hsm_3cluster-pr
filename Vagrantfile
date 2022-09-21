@@ -3,17 +3,17 @@
 # // To list interfaces on CLI typically:
 # //	macOS: networksetup -listallhardwareports ;
 # //	Linux: lshw -class network ;
+# MAY NEED: export VAGRANT_EXPERIMENTAL="disks"  # if needing bigger disk
 #sNET='en0: Wi-Fi'  # // network adaptor to use for bridged mode
-sNET='en6: USB 10/100/1000 LAN'  # // network adaptor to use for bridged mode
-
+sNET='en8: Thunderbolt Ethernet Slot 1'  # // network adaptor to use for bridged mode
 sVUSER='vagrant'  # // vagrant user
 sHOME="/home/#{sVUSER}"  # // home path for vagrant user
 sPTH='cc.os.user-input'  # // path where scripts are expected
 sCA_CERT='cacert.crt'  # // Root CA certificate.
 
-iCLUSTERA_N = 1  # // Vault A INSTANCES UP TO 9 <= iN > 0
-iCLUSTERB_N = 1  # // Vault B INSTANCES UP TO 9 <= iN > 0
-iCLUSTERC_N = 1  # // Vault B INSTANCES UP TO 9 <= iN > 0
+iCLUSTERA_N = 3  # // Vault A INSTANCES UP TO 9 <= iN > 0
+iCLUSTERB_N = 0  # // Vault B INSTANCES UP TO 9 <= iN > 0
+iCLUSTERC_N = 0  # // Vault B INSTANCES UP TO 9 <= iN > 0
 
 iCLUSTERA_C = 0  # // Consul A INSTANCES UP TO 9 <= iN > 2
 iCLUSTERB_C = 0  # // Consul B INSTANCES UP TO 9 <= iN > 2
@@ -39,7 +39,6 @@ iCLUSTERA_IP_CONSUL_CLASS_D=110  # // Consul A IP starting D class (increment or
 iCLUSTERB_IP_CONSUL_CLASS_D=120  # // Consul B IP starting D class (increment or de)
 iCLUSTERC_IP_CONSUL_CLASS_D=130  # // Consul C IP starting D class (increment or de)
 
-
 iCLUSTERA_IP_VAULT_CLASS_D=254  # // Vault A Leader IP starting D class (increment or de)
 iCLUSTERB_IP_VAULT_CLASS_D=244  # // Vault B Leader IP starting D class (increment or de)
 iCLUSTERC_IP_VAULT_CLASS_D=234  # // Vault C Leader IP starting D class (increment or de)
@@ -48,11 +47,9 @@ sCLUSTERA_IP_CA_NODE="#{sCLUSTERA_IP_CLASS_D}.#{iCLUSTERA_IP_VAULT_CLASS_D-1}"  
 sCLUSTERB_IP_CA_NODE="#{sCLUSTERB_IP_CLASS_D}.#{iCLUSTERB_IP_VAULT_CLASS_D-1}"  # // Cluster B - static IP of CA
 sCLUSTERC_IP_CA_NODE="#{sCLUSTERC_IP_CLASS_D}.#{iCLUSTERC_IP_VAULT_CLASS_D-1}"  # // Cluster C - static IP of CA
 
-
 sCLUSTERA_sIP_VAULT_LEADER="#{sCLUSTERA_IP_CLASS_D}.#{iCLUSTERA_IP_VAULT_CLASS_D-1}"  # // Vault A static IP of CA
 sCLUSTERB_sIP_VAULT_LEADER="#{sCLUSTERB_IP_CLASS_D}.#{iCLUSTERB_IP_VAULT_CLASS_D-1}"  # // Vault B static IP of CA
 sCLUSTERC_sIP_VAULT_LEADER="#{sCLUSTERC_IP_CLASS_D}.#{iCLUSTERC_IP_VAULT_CLASS_D-1}"  # // Vault C static IP of CA
-
 
 sCLUSTERA_IPS=''  # // Consul A - IPs constructed based on IP D class + instance number
 sCLUSTERB_IPS=''  # // Consul B - IPs constructed based on IP D class + instance number
@@ -74,26 +71,30 @@ aCLUSTERC_FILES =  # // Cluster C files to copy to instances
 ];
 
 
-VV1='VAULT_VERSION='+'1.10.3+ent.hsm'  # VV1='' to Install Latest OSS
+VV1='VAULT_VERSION='+'1.11.3+ent.hsm'  # VV1='' to Install Latest OSS
 VR1="VAULT_RAFT_JOIN=https://#{sCLUSTERA_sIP_VAULT_LEADER}:8200"  # raft join script determines applicability
 VV2='VAULT_VERSION='+'1.10.3+ent.hsm'  # VV2='' to Install Latest OSS
 VR2="VAULT_RAFT_JOIN=https://#{sCLUSTERB_sIP_VAULT_LEADER}:8200"  # raft join script determines applicability
 VV3='VAULT_VERSION='+'1.10.3+ent.hsm'  # VV3='' to Install Latest OSS
 VR3="VAULT_RAFT_JOIN=https://#{sCLUSTERB_sIP_VAULT_LEADER}:8200"  # raft join script determines applicability
 
-
 sERROR_MSG_CONSUL="CONSUL Node count can NOT be zero (0). Set to: 3, 5, 7 , 11, etc."
 
 Vagrant.configure("2") do |config|
-	config.vm.box = "debian/bullseye64"
+#        config.vm.post_up_message = ""
+	config.vm.box = "aphorise/debian11-fs-full"
 	config.vm.box_check_update = false  # // disabled to reduce verbosity - better enabled
-	#config.vm.box_version = "10.4.0"  # // Debian tested version.
-	# // OS may be "ubuntu/.." as well.
+#	config.vm.disk :disk, size: "4GB", primary: true
 
 	config.vm.provider "virtualbox" do |v|
-		v.memory = 1024  # // RAM / Memory
-		v.cpus = 1  # // CPU Cores / Threads
+		v.memory = 2048  # // RAM / Memory
+		v.cpus = 2  # // CPU Cores / Threads
 		v.check_guest_additions = false  # // disable virtualbox guest additions (no default warning message)
+#		HOME_DISK='/Users/mehdi/.vagrant.d/boxes/debian-VAGRANTSLASH-bullseye64/11.20220912.1/virtualbox/box2.vdi'
+#		if ARGV[0] == "up" && ! File.exist?(HOME_DISK)
+#			v.customize ['createhd', '--filename', HOME_DISK, '--format', 'VDI', '--size', 5000]
+#			v.customize ['storageattach', :id, '--storagectl', 'SATA Controller', '--port', 0, '--device', 0, '--type', 'hdd', '--medium', HOME_DISK]
+#		end
 	end
 
 	# // ESSENTIALS PACKAGES INSTALL & SETUP
@@ -141,8 +142,8 @@ SCRIPT
 				vault_node.vm.provision "shell", inline: $script
 			end
 
-			vault_node.vm.provision "file", source: "#{sPTH}/2.install_hsm.sh", destination: "#{sHOME}/install_hsm.sh"
-			vault_node.vm.provision "shell", inline: "/bin/bash -c '#{sHOME}/install_hsm.sh #{iCLUSTERA_N}'"
+#			vault_node.vm.provision "file", source: "#{sPTH}/2.install_hsm.sh", destination: "#{sHOME}/install_hsm.sh"
+#			vault_node.vm.provision "shell", inline: "/bin/bash -c '#{sHOME}/install_hsm.sh #{iCLUSTERA_N}'"
 
 			# // ORDERED: Copy certs & ssh private keys before setup from vault1 / CA source generating.
 			if iX > 1 then
@@ -231,8 +232,8 @@ SCRIPT
 				vault_node.vm.provision "shell", inline: $script
 			end
 
-			vault_node.vm.provision "file", source: "#{sPTH}/2.install_hsm.sh", destination: "#{sHOME}/install_hsm.sh"
-			vault_node.vm.provision "shell", inline: "/bin/bash -c '#{sHOME}/install_hsm.sh #{iCLUSTERB_N}'"
+#			vault_node.vm.provision "file", source: "#{sPTH}/2.install_hsm.sh", destination: "#{sHOME}/install_hsm.sh"
+#			vault_node.vm.provision "shell", inline: "/bin/bash -c '#{sHOME}/install_hsm.sh #{iCLUSTERB_N}'"
 
 			# // ORDERED: Copy certs & ssh private keys before setup from vault1 / CA source generating.
 			if iX > 1 then
@@ -335,8 +336,8 @@ SCRIPT
 				vault_node.vm.provision "shell", inline: $script
 			end
 
-			vault_node.vm.provision "file", source: "#{sPTH}/2.install_hsm.sh", destination: "#{sHOME}/install_hsm.sh"
-			vault_node.vm.provision "shell", inline: "/bin/bash -c '#{sHOME}/install_hsm.sh #{iCLUSTERC_N}'"
+#			vault_node.vm.provision "file", source: "#{sPTH}/2.install_hsm.sh", destination: "#{sHOME}/install_hsm.sh"
+#			vault_node.vm.provision "shell", inline: "/bin/bash -c '#{sHOME}/install_hsm.sh #{iCLUSTERC_N}'"
 
 			# // ORDERED: Copy certs & ssh private keys before setup from vault1 / CA source generating.
 			if iX > 1 then

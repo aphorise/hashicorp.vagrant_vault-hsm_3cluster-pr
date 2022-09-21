@@ -11,13 +11,13 @@ function pERR()
 
 VVERSION=$(vault --version) ;
 if ! [[ ${VVERSION} == *"ent"* ]] ; then
-	pERR "VAULT ENTERPRISE REQUIRED! - but found: ${VVERSION}\n" ; exit 1 ;
+	pERR "VAULT ENTERPRISE REQUIRED! - but found: ${VVERSION}" ; exit 1 ;
 fi ;
 
 # // VAULT_TOKEN ought to exist by now from either init or copy from vault1:
 
 if [[ ${VAULT_TOKEN} == "" ]] ; then VAULT_TOKEN=$(grep -F VAULT_TOKEN ${HOME_PATH}/.bashrc | cut -d'=' -f2) ; fi ;
-if [[ ${VAULT_TOKEN} == "" ]] ; then pERR 'VAULT ERROR: No Token Found.\n' ; exit 1 ; fi ;
+if [[ ${VAULT_TOKEN} == "" ]] ; then pERR 'VAULT ERROR: No Token Found.' ; exit 1 ; fi ;
 
 if [[ -s vault_token_perf1.json ]] ; then PR_TOKEN="$(jq -r '.wrap_info.token' vault_token_perf1.json)" ; fi ;
 if [[ -s vault_token_perf2.json ]] ; then PR_TOKEN="$(jq -r '.wrap_info.token' vault_token_perf2.json)" ; fi ;
@@ -25,8 +25,8 @@ if [[ ${PR_TOKEN} == "" ]] ; then pERR 'VAULT ERROR: PERF Token NOT Found.\n' ; 
 
 # vault write /sys/replication/dr/secondary/enable token=${DR_TOKEN} 2> /dev/null ;
 vault write /sys/replication/performance/secondary/enable token="${PR_TOKEN}" 2> /dev/null ;
-if (($? == 0)) ; then pOUT 'VAULT: PREF Replication Token Accepted.\n' ;
-else pERR 'VAULT ERROR: Applying PREF Replication token.\n' ; fi ;
+if (($? == 0)) ; then pOUT 'VAULT: PREF Replication Token Accepted.' ;
+else pERR 'VAULT ERROR: Applying PREF Replication token.' ; fi ;
 
 exit 0 ;
 
