@@ -2,6 +2,10 @@
 set -eu ; # abort this script when a command fails or an unset variable is used.
 #set -x ; # echo all the executed commands
 
+# // Needed for VMWare time-sync mislaigment between hosts
+# // Error checking seal status: Get "https://172.16.17.162:8200/v1/sys/seal-status": tls: failed to verify certificate: x509: certificate has expired or is not yet valid: current time 2023-12-11T10:45:43Z is before 2023-12-11T11:45:10Z
+date -Ins -s $(date -Ins -d '-2 hour') 2>&1> /dev/null
+
 # // OpenSSL Configuration & paths
 OPENSSL_PATH=$(openssl version -a | grep OPENSSLDIR | grep -oP '"\K[^"\047]+(?=["\047])') ; # // get directory path
 OPENSSL_CONF="${OPENSSL_PATH}/openssl.cnf" ;
@@ -22,14 +26,32 @@ if [[ ! ${IP_WAN+x} ]]; then
 	if (( $? != 0 )) ; then pERR "--ERROR: Unable to determine WAN IP of ${IP_WAN_INTERFACE}" ; fi ;
 fi ;
 
+IP_WAN2='' ;
+if [[ ! ${IP_LB_INTERFACE+x} ]]; then IP_LB_INTERFACE="$(ip a | awk '/: / { print $2 }' | sed -n 4p | cut -d ':' -f1)" ; fi ; # // 2nd interface 'eth2'
+if [[ ! ${IP_LB+x} && ${IP_LB_INTERFACE} != "" ]]; then
+	IP_WAN2="$(ip a show ${IP_LB_INTERFACE} | grep -oE '\b((25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\b' | head -n 1)" ;
+	if (( $? != 0 )) ; then
+		pERR "ERROR: Unable to determine LB IP of ${IP_LB_INTERFACE}" ;
+	else
+		IP_WAN2="IP.3=${IP_WAN2}"
+	fi ;
+fi ;
+
+
 if [[ ! ${VAULT_NODENAME+x} ]]; then VAULT_NODENAME=$(hostname) ; fi ; # // will be based on hostname *1 == main, others standby.
 
-if [[ ! ${VAULT_FILE_KEY+x} ]]; then VAULT_FILE_KEY='vault_private.key' ; fi ;
-if [[ ! ${VAULT_FILE_CSR+x} ]]; then VAULT_FILE_CSR='vault_tbc.csr' ; fi ;
-if [[ ! ${VAULT_FILE_CRT+x} ]]; then VAULT_FILE_CRT='vault_certificate.crt' ; fi ;
+# // if current host is HAProxy then we'll set CA configs and generate certificates.
+if [[ ${VAULT_NODENAME,,} == *"haproxy"* ]] ; then
+	if [[ ! ${VAULT_FILE_KEY+x} ]]; then VAULT_FILE_KEY='haproxy_private.key' ; fi ;
+	if [[ ! ${VAULT_FILE_CSR+x} ]]; then VAULT_FILE_CSR='haproxy_tbc.csr' ; fi ;
+	if [[ ! ${VAULT_FILE_CRT+x} ]]; then VAULT_FILE_CRT='haproxy_certificate.crt' ; fi ;
+fi ;
+
 if [[ ! ${CA_FILENAME+x} ]]; then CA_FILENAME='cacert.crt' ; fi ;
 if [[ ! ${CA2_FILENAME+x} ]]; then CA2_FILENAME='cacert_leader.crt' ; fi ;
 
+if [[ ! ${IP_VAULT1+x} ]]; then pERR "--ERROR: IP address of first vault required. IP_VAULT1 variable not passed." ; fi ;
+if [[ ! ${FQDN_VAULT1+x} ]]; then pERR "--ERROR: FQDN address of first vault required. FQDN_VAULT1 variable not passed." ; fi ;
 
 CA_CSN='3141' ; # // CA - Certificate Serial Number (starting issue number)
 SECRET_CA='' ; # // CA - Certificate password
@@ -47,9 +69,9 @@ I_TLS_COUNTRY='GB' ; # // Intermediate COUNTRY 2-letters - MUST PROVIDE
 I_TLS_STATE='.' ; # // Intermediate STATE OR PROVINCE
 I_TLS_CITY='.' ; # // Intermediate CITY
 I_TLS_ORG='.' ; # // Intermediate ORGANISATION
-I_TLS_ORGU='Vault CA' ; # // Intermediate ORGANISATIONAL UNIT
-I_TLS_CN='vault.tld.com.local' ; # // Intermediate COMMON NAME
-I_TLS_EMAIL='user@tld.com.local' ; # // Intermediate EMAIL ADDRESS
+I_TLS_ORGU='HAP Vault CA' ; # // Intermediate ORGANISATIONAL UNIT
+I_TLS_CN='hap-vault.tld.com.local' ; # // Intermediate COMMON NAME
+I_TLS_EMAIL='user@hap-vault.tld.com.local' ; # // Intermediate EMAIL ADDRESS
 I_CSR_SUB="/C=${I_TLS_COUNTRY}/ST=${I_TLS_STATE}/L=${I_TLS_CITY}/O=${I_TLS_ORG}/OU=${I_TLS_ORGU}/CN=${I_TLS_CN}/emailAddress=${I_TLS_EMAIL}" ;
 
 TLS_TTL=3652 ; # // 10 years approximately
@@ -59,8 +81,8 @@ C_TLS_STATE='.' ; # // CA STATE OR PROVINCE
 C_TLS_CITY='.' ; # // CA CITY
 C_TLS_ORG='.' ; # // CA ORGANISATION
 C_TLS_ORGU='.' ; # // CA ORGANISATIONAL UNIT
-C_TLS_CN='www.tld.com.local' ; # // CA COMMON NAME
-C_TLS_EMAIL='user@tld.com.local' ; # // CA EMAIL ADDRESS
+C_TLS_CN='www.hap-vault-tld.com.local' ; # // CA COMMON NAME
+C_TLS_EMAIL='user@hap-vault-tld.com.local' ; # // CA EMAIL ADDRESS
 CA_CSR_SUB="/C=${C_TLS_COUNTRY}/ST=${C_TLS_STATE}/L=${C_TLS_CITY}/O=${C_TLS_ORG}/OU=${C_TLS_ORGU}/CN=${C_TLS_CN}/emailAddress=${C_TLS_EMAIL}" ;
 
 VAULT_TLS_COUNTRY='GB' ; # // HAProxy COUNTRY 2-letters - MUST PROVIDE
@@ -68,17 +90,21 @@ VAULT_TLS_STATE='.' ; # // HAProxy STATE OR PROVINCE
 VAULT_TLS_CITY='.' ; # // HAProxy CITY
 VAULT_TLS_ORG='.' ; # // HAProxy ORGANISATION
 VAULT_TLS_ORGU='.' ; # // HAProxy ORGANISATIONAL UNIT
-VAULT_TLS_CN='subdomain.tld.com.local' ; # // HAProxy COMMON NAME
-VAULT_TLS_EMAIL='user2@subdomain.tld.local' ; # // HAProxy EMAIL ADDRESS
+VAULT_TLS_CN='hap-vault.tld.com.local' ; # // HAProxy COMMON NAME
+VAULT_TLS_EMAIL='user2@hap-vault.tld.local' ; # // HAProxy EMAIL ADDRESS
 VAULT_CSR_SUB="/C=${VAULT_TLS_COUNTRY}/ST=${VAULT_TLS_STATE}/L=${VAULT_TLS_CITY}/O=${VAULT_TLS_ORG}/OU=${VAULT_TLS_ORGU}/CN=${VAULT_TLS_CN}/emailAddress=${VAULT_TLS_EMAIL}" ;
+
+LOCAL_FQDN=$(hostname -f)
 
 VAULT_SAN="""[SAN]
 subjectAltName=@alt_names
 basicConstraints=CA:FALSE
 [alt_names]
 DNS.1=localhost
+DNS.2=${LOCAL_FQDN}
 IP.1=127.0.0.1
 IP.2=${IP_WAN}
+${IP_WAN2}
 """ ;
 
 LOGNAME=$(logname) ;
@@ -218,21 +244,21 @@ function makeCertificate()
 		sMSG_TLS_EXISTS_CRTS+=("${VAULT_FILE_KEY}") ;
 	fi ;
 
-	# // VAULT CSR Generate
-	if ! [[ -s ${VAULT_FILE_CSR} ]] ; then
-		if [[ ${SECRET_VLT} == '' ]] ; then
-			openssl req -new -key ${VAULT_FILE_KEY} -out ${VAULT_FILE_CSR} -subj "${VAULT_CSR_SUB}" 2>/dev/null ; # -sha256
-		else
-			openssl req -passin pass:${SECRET_VLT} -new -key ${VAULT_FILE_KEY} -out ${VAULT_FILE_CSR} -subj "${VAULT_CSR_SUB}" 2>/dev/null ; # -sha256
-		fi ;
-		sMSG_TLS_GENERATED_CSRS+=("${VAULT_FILE_CSR}") ;
-	else
-		sMSG_TLS_EXISTS_CSRS+=("${VAULT_FILE_CSR}") ;
-	fi ;
-
 	# // VAULT CSR Sign / Approve
 	# openssl req -passin pass:${SECRET_CA} -x509 -sha256 -days ${TLS_TTL} -key ${CA_FILE_KEY} -in ${VAULT_FILE_CSR} -out ${VAULT_FILE_CRT} ;
 	if ! [[ -s ${VAULT_FILE_CRT} ]] ; then
+		# // VAULT CSR Generate
+		if ! [[ -s ${VAULT_FILE_CSR} ]] ; then
+			if [[ ${SECRET_VLT} == '' ]] ; then
+				openssl req -new -key ${VAULT_FILE_KEY} -out ${VAULT_FILE_CSR} -subj "${VAULT_CSR_SUB}" 2>/dev/null ; # -sha256
+			else
+				openssl req -passin pass:${SECRET_VLT} -new -key ${VAULT_FILE_KEY} -out ${VAULT_FILE_CSR} -subj "${VAULT_CSR_SUB}" 2>/dev/null ; # -sha256
+			fi ;
+			sMSG_TLS_GENERATED_CSRS+=("${VAULT_FILE_CSR}") ;
+		else
+			sMSG_TLS_EXISTS_CSRS+=("${VAULT_FILE_CSR}") ;
+		fi ;
+
 		if [[ ${SECRET_CA} == '' ]] ; then
 			# openssl ca -batch -days ${TLS_TTL} -in ${VAULT_FILE_CSR} -out ${VAULT_FILE_CRT} 2>/dev/null ;
 			openssl ca -batch -days ${TLS_TTL} -in ${VAULT_FILE_CSR} -out ${VAULT_FILE_CRT} -extensions SAN -extfile <(printf "${VAULT_SAN}") 2>/dev/null ;
@@ -248,37 +274,44 @@ function makeCertificate()
 
 function makeCertificates_Vault()
 {
-	if ((${#} == 0)) ; then # // created single cert
+	VAULT_FILE_KEY='vault_private.key' ;
+	VAULT_FILE_CSR='vault_tbc.csr' ;
+	VAULT_FILE_CRT='vault_certificate.crt' ;
+
+	for ((iX=1; iX <= $1; ++iX)) ; do
+		# // grab original values:
+		O_VAULT_FILE_KEY=${VAULT_FILE_KEY} ;
+		O_VAULT_FILE_CSR=${VAULT_FILE_CSR} ;
+		O_VAULT_FILE_CRT=${VAULT_FILE_CRT} ;
+		O_VAULT_TLS_CN=${VAULT_TLS_CN} ;
+		O_VAULT_TLS_EMAIL=${VAULT_TLS_EMAIL} ;
+
+		# // increment numbers used in all filenames.
+		VAULT_FILE_KEY=${VAULT_FILE_KEY/vault/vault${iX}} ;
+		VAULT_FILE_CSR=${VAULT_FILE_CSR/vault/vault${iX}} ;
+		VAULT_FILE_CRT=${VAULT_FILE_CRT/vault/vault${iX}} ;
+		VAULT_TLS_CN=${VAULT_TLS_CN/\./${iX}.} ;
+		VAULT_TLS_EMAIL=${VAULT_TLS_CN/\./${iX}.} ;
+		VAULT_CSR_SUB="/C=${VAULT_TLS_COUNTRY}/ST=${VAULT_TLS_STATE}/L=${VAULT_TLS_CITY}/O=${VAULT_TLS_ORG}/OU=${VAULT_TLS_ORGU}/CN=${VAULT_TLS_CN}/emailAddress=${VAULT_TLS_EMAIL}" ;
+		FQDN_VAULT1=${FQDN_VAULT1/vault1/vault${iX}} ;
+		VAULT_SAN=${VAULT_SAN/DNS\.2\=${LOCAL_FQDN}/DNS\.2=${FQDN_VAULT1}} ;
+		LOCAL_FQDN=${FQDN_VAULT1}
+		sIP2=$(printf ${IP_VAULT1} | cut -d. -f4) ;
+		sIP2=${IP_VAULT1/%\.${sIP2}/\.$((sIP2-(iX-1)))} ; # // decremt IP based on D class - HAProxy & Vault nodes 23-IP's apart
+		VAULT_SAN=${VAULT_SAN/IP\.2\=*/IP\.2=${sIP2}} ;
+		# // should implement later if Vault certificates are expected to have dual IP
+		if ! [[ IP_WAN2 == "" ]] ; then   # "IP.3=${IP_WAN2}"
+			VAULT_SAN=${VAULT_SAN/IP\.3\=*/#IP\.3=...} ;
+		fi ;
 		makeCertificate ;
-	else
-		for ((iX=1; iX <= $1; ++iX)) ; do
-			# // grab original values:
-			O_VAULT_FILE_KEY=${VAULT_FILE_KEY} ;
-			O_VAULT_FILE_CSR=${VAULT_FILE_CSR} ;
-			O_VAULT_FILE_CRT=${VAULT_FILE_CRT} ;
-			O_VAULT_TLS_CN=${VAULT_TLS_CN} ;
-			O_VAULT_TLS_EMAIL=${VAULT_TLS_EMAIL} ;
 
-			# // increment numbers used in all filenames.
-			VAULT_FILE_KEY=${VAULT_FILE_KEY/vault/vault${iX}} ;
-			VAULT_FILE_CSR=${VAULT_FILE_CSR/vault/vault${iX}} ;
-			VAULT_FILE_CRT=${VAULT_FILE_CRT/vault/vault${iX}} ;
-			VAULT_TLS_CN=${VAULT_TLS_CN/\./${iX}.} ;
-			VAULT_TLS_EMAIL=${VAULT_TLS_CN/\./${iX}.} ;
-			VAULT_CSR_SUB="/C=${VAULT_TLS_COUNTRY}/ST=${VAULT_TLS_STATE}/L=${VAULT_TLS_CITY}/O=${VAULT_TLS_ORG}/OU=${VAULT_TLS_ORGU}/CN=${VAULT_TLS_CN}/emailAddress=${VAULT_TLS_EMAIL}" ;
-			sIP2=$(printf ${IP_WAN} | cut -d. -f4) ;
-			sIP2=${IP_WAN/%\.${sIP2}/\.$((sIP2-(iX-1)))} ; # // decremt IP based on D class
-			VAULT_SAN=${VAULT_SAN/IP\.2\=*/IP\.2=${sIP2}} ;
-			makeCertificate ;
-
-			# // re-assigns original values.
-			VAULT_FILE_KEY=${O_VAULT_FILE_KEY} ;
-			VAULT_FILE_CSR=${O_VAULT_FILE_CSR} ;
-			VAULT_FILE_CRT=${O_VAULT_FILE_CRT} ;
-			VAULT_TLS_CN=${O_VAULT_TLS_CN} ;
-			VAULT_TLS_EMAIL=${O_VAULT_TLS_EMAIL} ;
-		done ;
-	fi ;
+		# // re-assigns original values.
+		VAULT_FILE_KEY=${O_VAULT_FILE_KEY} ;
+		VAULT_FILE_CSR=${O_VAULT_FILE_CSR} ;
+		VAULT_FILE_CRT=${O_VAULT_FILE_CRT} ;
+		VAULT_TLS_CN=${O_VAULT_TLS_CN} ;
+		VAULT_TLS_EMAIL=${O_VAULT_TLS_EMAIL} ;
+	done ;
 
 	if ((${#sMSG_TLS_GENERATED_KEYS[*]} > 1)) ; then printf '%s\n' "${sMSG_TLS_GENERATED_KEYS[*]}" ; fi ;
 	#if ((${#sMSG_TLS_GENERATED_CSRS[*]} > 1)) ; then printf '%s\n' "${sMSG_TLS_GENERATED_CSRS[*]}" ; fi ;
@@ -288,11 +321,21 @@ function makeCertificates_Vault()
 	if ((${#sMSG_TLS_EXISTS_CRTS[*]} > 1)) ; then printf '%s\n' "${sMSG_TLS_EXISTS_CRTS[*]}" ; fi ;
 }
 
-# // if current host is vault1 then we'll set CA configs and generate certificates.
-if [[ ${VAULT_NODENAME,,} == *"vault1" ]] ; then
+# // if current host is HAProxy then we'll set CA configs and generate certificates.
+if [[ ${VAULT_NODENAME,,} == *"haproxy"* ]] ; then
 	makeRootCA ;
 	# makeInermediateCA ;
-	if [[ ${1-} ]] ; then makeCertificates_Vault $1 ; else makeCertificates_Vault ; fi ;
+	makeCertificate ;  # // for HAPROXY itself.
+	if [[ ${1-} ]] ; then makeCertificates_Vault $1 ; fi ;
+	cat haproxy_private.key haproxy_certificate.crt > /usr/lib/ssl/haproxy_cert.pem ;
+fi ;
+
+# // if current host is vault1 then we'll set CA configs and generate certificates.
+if [[ ${VAULT_NODENAME,,} == *"vault1" ]] ; then
+	if ! [[ -s ${CA_FILENAME} ]] ; then makeRootCA ; fi ;
+	# makeInermediateCA ;
+	VNUM=1 ; if [[ ${1-} ]] ; then VNUM=$1 ; fi ;	
+	makeCertificates_Vault $VNUM ;
 fi ;
 
 if [[ -s /etc/ca-certificates.conf ]] ; then
@@ -301,8 +344,8 @@ if [[ -s /etc/ca-certificates.conf ]] ; then
 		# // expected cacert.crt file in current script path (ommitting any prefix paths)
 		if cp ${CA_FILENAME} /usr/local/share/ca-certificates/. ; then
 			# // root CA must be added OS.
-			CRT_UPDATE=$(update-ca-certificates 2>&1 | head -n2 | tail -n1 | cut -d' ' -f 1) ;
-			if ((CRT_UPDATE != 0)) ; then
+			CRT_UPDATE=$(update-ca-certificates 2>&1 | grep 'added' | cut -d' ' -f 1) ;
+			if (($?==0 && ${#CRT_UPDATE} != 0)) ; then
 				pOUT "OS CA Certificates - ADDED: ${CRT_UPDATE} to trust store." ;
 			else
 				pERR "ERROR: CA Certificates\e[0m Nothing Added to trust store - ${CRT_UPDATE}!" ;
@@ -319,6 +362,8 @@ fi ;
 
 chown -R ${LOGNAME} . ;
 
+# // DELETE CSR
+rm -rf *.csr ;
 
 # // COPY KEY & CRT to OpenSSL Paths. (should not be needed)
 # cp ${VAULT_FILE_KEY} ${OPENSSL_PATH}/private/. && cp ${VAULT_FILE_CRT} ${OPENSSL_PATH}/certs/.
@@ -332,3 +377,5 @@ chown -R ${LOGNAME} . ;
 
 # // REGENERATE SERVICE READY KEY with no pass prompts
 # openssl rsa -in ${VAULT_FILE_KEY} -out unsecured.${VAULT_FILE_KEY}
+
+date -Ins -s $(date -Ins -d '+2 hour') 2>&1> /dev/null

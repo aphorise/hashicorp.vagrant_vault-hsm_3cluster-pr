@@ -323,7 +323,7 @@ function sudoSetup()
 	# // Enable auto complete
 	set +e ;
 	vault -autocomplete-install 2>/dev/null && complete -C ${PATH_BINARY} vault 2>/dev/null ;
-	su -l ${USER_MAIN} -c "vault -autocomplete-install 2>/dev/null && complete -C ${PATH_BINARY} vault 2>/dev/null;"
+	su -l ${USER_MAIN} -c "vault -autocomplete-install 2>/dev/null && complete -C ${PATH_BINARY} vault 2>/dev/null;" 2>&1>/dev/null
 	set -e ;
 
 	# // SystemD for service / startup
@@ -332,7 +332,6 @@ function sudoSetup()
 
 	# // HSM pre-setup preparation if applicable
 	if [[ ${VAULT_CONF_SEAL[*]} == *"seal \"pkcs11\""* ]] ; then hsmSetup ; fi ;
-
 	if ! [[ -d ${PATH_VAULT_DATA} ]] ; then mkdir -p ${PATH_VAULT_DATA} && chown -R ${USER_VAULT} ${PATH_VAULT_DATA} ; fi ;
 
 	if mkdir -p ${PATH_VAULT} && touch ${PATH_VAULT_CONFIG} && chown -R ${USER_VAULT} ${PATH_VAULT} && chmod 640 ${PATH_VAULT_CONFIG} ; then
@@ -340,20 +339,39 @@ function sudoSetup()
 			if [[ ${VAULT_CONF_TLS_CERT_FILE} == "" && ${VAULT_CONF_TLS_KEY_FILE} == "" ]] ; then
 				cd ${PATH_INSTALL} ; cd .. ;
 
+#				# // determine key & crt file based on current path & first returned file.
+#				for sFILE in $(pwd)/${TLS_CRT_KEY_FILES} ; do
+#					if [[ ${sFILE} == *".crt" ]] ; then						
+#						if [[ ${TLS_ENABLE} == "true" ]] ; then VAULT_CONF_TLS_CERT_FILE="	tls_cert_file = \"${sFILE}\"" ; fi ;
+#						if [[ ${TLS_ENABLE} != "true" ]] ; then VAULT_CONF_TLS_CERT_FILE="	# tls_cert_file = \"${sFILE}\"" ; fi ;
+#					fi ;
+#					if [[ ${sFILE} == *".key" ]] ; then
+#						if [[ ${TLS_ENABLE} == "true" ]] ; then VAULT_CONF_TLS_KEY_FILE="	tls_key_file = \"${sFILE}\"" ; fi ;
+#						if [[ ${TLS_ENABLE} != "true" ]] ; then VAULT_CONF_TLS_KEY_FILE="	#tls_key_file = \"${sFILE}\"" ; fi ;
+#						# chown ${USER_VAULT} ${sFILE} ;
+#					fi ;
+#					if [[ ${VAULT_CONF_TLS_CERT_FILE} != "" && ${VAULT_CONF_TLS_KEY_FILE} != "" ]] ; then
+#						if [[ ${TLS_ENABLE} == "true" ]] ; then VAULT_CONF_TLS_DISABLED='	# tls_disable      = true' ; fi ;
+#						if [[ ${TLS_ENABLE} != "true" ]] ; then VAULT_CONF_TLS_DISABLED='	tls_disable      = true' ; fi ;
+#						break ;
+#					fi ;
+#				done ;
 				# // determine key & crt file based on current path & first returned file.
 				for sFILE in $(pwd)/${TLS_CRT_KEY_FILES} ; do
 					if [[ ${sFILE} == *".crt" ]] ; then
-						if [[ ${TLS_ENABLE} == "true" ]] ; then VAULT_CONF_TLS_CERT_FILE="	tls_cert_file = \"${sFILE}\"" ; fi ;
-						if [[ ${TLS_ENABLE} != "true" ]] ; then VAULT_CONF_TLS_CERT_FILE="	# tls_cert_file = \"${sFILE}\"" ; fi ;
+						sFILE2=${PATH_VAULT}/vault_certificate.crt ;
+						cp ${sFILE} ${sFILE2} ;
+						VAULT_CONF_TLS_CERT_FILE="	tls_cert_file = \"${sFILE2}\"" ;
 					fi ;
 					if [[ ${sFILE} == *".key" ]] ; then
-						if [[ ${TLS_ENABLE} == "true" ]] ; then VAULT_CONF_TLS_KEY_FILE="	tls_key_file = \"${sFILE}\"" ; fi ;
-						if [[ ${TLS_ENABLE} != "true" ]] ; then VAULT_CONF_TLS_KEY_FILE="	#tls_key_file = \"${sFILE}\"" ; fi ;
-						chown ${USER_VAULT} ${sFILE} ;
+						sFILE2=${PATH_VAULT}/vault_private.key ;
+						cp ${sFILE} ${sFILE2} ;
+						VAULT_CONF_TLS_KEY_FILE="	tls_key_file = \"${sFILE2}\"" ;  # chown ${USER_VAULT} ${sFILE} ;
 					fi ;
+
 					if [[ ${VAULT_CONF_TLS_CERT_FILE} != "" && ${VAULT_CONF_TLS_KEY_FILE} != "" ]] ; then
-						if [[ ${TLS_ENABLE} == "true" ]] ; then VAULT_CONF_TLS_DISABLED='	# tls_disable      = true' ; fi ;
-						if [[ ${TLS_ENABLE} != "true" ]] ; then VAULT_CONF_TLS_DISABLED='	tls_disable      = true' ; fi ;
+						VAULT_CONF_TLS_DISABLED='''	# tls_disable      = true
+	tls_cipher_suites = "TLS_CHACHA20_POLY1305_SHA256,TLS_AES_256_GCM_SHA384,TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384,TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384,TLS_AES_128_GCM_SHA256,TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256,TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256"''' ;
 						break ;
 					fi ;
 				done ;
@@ -457,6 +475,32 @@ raw_storage_endpoint = true
 		SLEEP_TIME=3 ; # // time to sleep after a restart
 		pOUT "WAITING ${SLEEP_TIME} seconds for Vault service to be ready after a start." ;
 		sleep ${SLEEP_TIME} ;
+	fi ;
+
+	if [[ -s /home/${USER_MAIN}/.config/neofetch/config.conf ]] && ! [[ -s ${PATH_VAULT}/logo.txt ]] ; then
+		printf '''
+${c3} ◥███████████████████◤
+  ◥██████ █ █ ██████◤
+   ◥███████████████◤
+    ◥████ █ █ ████◤
+     ◥███████████◤
+      ◥██ █ █ ██◤
+       ◥███████◤
+        ◥██ ██◤
+          ◥█◤
+${c5}HashiCorp  ${c3}▼  ${c6} Vault''' > ${PATH_VAULT}/logo.txt ;
+		printf "neofetch --source ${PATH_VAULT}/logo.txt --ascii_colors 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15" > /etc/profile.d/neofetch.sh ;
+		sed -i 's/info title/#info title/g' /home/${USER_MAIN}/.config/neofetch/config.conf
+		sed -i 's/info "Packages"/#info "Packages"/g' /home/${USER_MAIN}/.config/neofetch/config.conf
+		sed -i 's/info "Resolution"/#info "Resolution/g' /home/${USER_MAIN}/.config/neofetch/config.conf
+		sed -i 's/info "GPU"/#info "GPU"/g' /home/${USER_MAIN}/.config/neofetch/config.conf
+		sed -i 's/info "Terminal" term/#info "Terminal" term/g' /home/${USER_MAIN}/.config/neofetch/config.conf
+		sed -i 's/info title/#info title/g' /home/${USER_MAIN}/.config/neofetch/config.conf
+		sed -i 's/# info "Disk"/info "Disk"/g' /home/${USER_MAIN}/.config/neofetch/config.conf
+		sed -i 's/# info "Local IP"/info "Local IP"/g' /home/${USER_MAIN}/.config/neofetch/config.conf
+		sed -i 's/gap=3/gap=0/g' /home/${USER_MAIN}/.config/neofetch/config.conf
+		sed -i 's/memory_percent="off"/memory_percent="on"/g' /home/${USER_MAIN}/.config/neofetch/config.conf
+		sed -i 's/info cols/#info cols\n    prin "\\n ${c0}▉${c2}▉${c3}▉${c4}▉${c5}▉${c6}▉${c1}▉${reset}${c15}▉${c2}▉${c3}▉${c4}▉${c5}▉${c6}▉${c1}▉${reset}${c15}▉"/g' /home/${USER_MAIN}/.config/neofetch/config.conf
 	fi ;
 }
 
