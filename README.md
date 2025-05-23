@@ -1,6 +1,6 @@
 # HashiCorp `vagrant` demo of **`vault`** HSM with Performance Replication Clusters.
 
-The same as the [MAIN branch](https://github.com/aphorise/hashicorp.vagrant_vault-hsm_3cluster-pr/tree/master)) - built on 🍎 Apple Silicon (ARM64) and MacOS with VMWare fusion (as opposed to VirtualBox).
+The same as the [MAIN branch](https://github.com/aphorise/hashicorp.vagrant_vault-hsm_3cluster-pr/tree/master) - built on 🍎 Apple Silicon (ARM64) and MacOS with VMWare fusion (as opposed to VirtualBox).
 
 This repo extends [**HSM**](https://www.vaultproject.io/docs/enterprise/hsm) mocked [setup (`vagrant_vault-hsm`)](https://github.com/aphorise/hashicorp.vagrant_vault-hsm) in the context of (PR) Performance Replication instead of (DR) Disaster Recovery that was previously done.
 
