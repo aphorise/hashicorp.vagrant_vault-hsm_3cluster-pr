@@ -48,8 +48,10 @@ Refer to the contents of **`Vagrantfile`** for complete details of Clusters A, B
 Other auto-unseal types can be attempted by adjusting: **`vault_files/vault_seal.hcl`** & valid license keys can be set in: **`vault_files/vault_license.txt`** .
 
 ```bash
-vagrant up --provider virtualbox ;
+vagrant up --provider=vmware_desktop ;
 # // … output of provisioning steps.
+# // for repeat runs do CMD+K or terminal reset
+# reset && time vagrant up --provider=vmware_desktop ;
 
 vagrant global-status ; # should show running nodes
   # id       name         provider    state    directory
@@ -103,7 +105,7 @@ vault read sys/replication/performance/status -format=json | jq ;
 # // ---------------------------------------------------------------------------
 # when completely done:
 vagrant destroy -f hsm1-vault1 hsm2-vault1 hsm3-vault1 ; # ... destroy all - ORDER IMPORTANT
-vagrant box remove -f debian/buster64 --provider virtualbox ; # ... delete box images
+vagrant box remove -f aphorise/debian12-arm64 --provider vmware_desktop ; # ... delete box images
 ```
 
 
